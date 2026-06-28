@@ -13,6 +13,7 @@
 import argparse
 import json
 import os
+from pathlib import Path
 import socket
 import subprocess
 import sys
@@ -75,11 +76,10 @@ class EnvHandler(SimpleHTTPRequestHandler):
             pass
         q = parse_qs(urlparse(raw).query)
         raw_path = (q.get("path", [""])[0])
-        if os.path.isabs(raw_path):
-            full = raw_path
-        else:
-            rel = raw_path.lstrip("/").replace("..", "").strip("/")
-            full = os.path.join(self.env, rel) if rel else self.env
+        full, error = resolve_reveal_path(self.env, raw_path)
+        if error:
+            self._send_text(403, error)
+            return
         if not os.path.exists(full):
             self._send_text(404, "文件不存在: " + raw_path)
             return
@@ -96,6 +96,60 @@ class EnvHandler(SimpleHTTPRequestHandler):
 
     def log_message(self, *a):
         pass
+
+
+def is_within(base, target):
+    base_real = os.path.realpath(base)
+    target_real = os.path.realpath(target)
+    try:
+        return os.path.commonpath([base_real, target_real]) == base_real
+    except ValueError:
+        return False
+
+
+def load_allowed_artifacts(env):
+    index_dir = Path(env) / "data" / "index"
+    if not index_dir.is_dir():
+        return set()
+
+    allowed = set()
+    for index_file in index_dir.glob("*.jsonl"):
+        try:
+            with index_file.open("r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        row = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    artifacts = row.get("artifacts", [])
+                    if not isinstance(artifacts, list):
+                        continue
+                    for artifact in artifacts:
+                        if isinstance(artifact, str) and os.path.isabs(os.path.expanduser(artifact)):
+                            allowed.add(os.path.realpath(os.path.expanduser(artifact)))
+        except OSError:
+            continue
+    return allowed
+
+
+def resolve_reveal_path(env, raw_path):
+    if not raw_path:
+        return os.path.realpath(env), ""
+
+    expanded = os.path.expanduser(raw_path)
+    if os.path.isabs(expanded):
+        full = os.path.realpath(expanded)
+        if full not in load_allowed_artifacts(env):
+            return "", "拒绝打开未登记的绝对路径"
+        return full, ""
+
+    full = os.path.realpath(os.path.join(env, expanded.lstrip("/")))
+    if not is_within(env, full):
+        return "", "拒绝打开运行环境之外的路径"
+    return full, ""
 
 
 def reveal_in_file_manager(path):

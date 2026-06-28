@@ -6,7 +6,7 @@
 
 用法：
   python3 setup.py                    # 交互式初始化（推荐）
-  python3 setup.py --env ~/path       # 指定运行环境路径
+  python3 setup.py init --env ~/path  # 指定运行环境路径
   python3 setup.py config             # 修改已有配置
 """
 import argparse

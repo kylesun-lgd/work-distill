@@ -45,7 +45,7 @@ cp -r work-distill ~/.agents/skills/
 ### 2. 初始化运行环境（一次性）
 
 ```bash
-python3 ~/.agents/skills/work-distill/scripts/setup.py
+python3 ~/.agents/skills/work-distill/scripts/setup.py init
 ```
 
 交互式确认：运行环境路径（默认 `~/Documents/Zcode/work-distill`）、端口、默认 agent。
@@ -126,7 +126,7 @@ work-distill/
 
 ```bash
 # 初始化 / 改配置
-python3 scripts/setup.py
+python3 scripts/setup.py init
 python3 scripts/setup.py config
 
 # 沉淀（agent 通常自动调用）

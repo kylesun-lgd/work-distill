@@ -216,6 +216,7 @@
       </div>
       <div class="section-head"><h2>进行中的项目</h2><span class="hint">按更新时间倒序 · 点击查看详情</span><div class="line"></div></div>
       <div class="pgrid" id="pgrid"><div class="loading">加载中…</div></div>
+      <div class="show-more" id="loadEarlier">加载更早的记录</div>
     </div>
 
     <div id="view-detail" class="hidden">
@@ -270,34 +271,47 @@ function isArchived(k){
     .sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
   return changes.length>0&&changes[0].type==="archive";
 }
-function archivedProjects(){
+  function archivedProjects(){
   return [...new Set(ENTRIES.map(e=>pkey(e)))].filter(k=>isArchived(k))
     .map(k=>({k,last:ENTRIES.filter(e=>pkey(e)===k).map(e=>e.ts).sort().reverse()[0]}))
     .sort((a,b)=>String(b.last).localeCompare(String(a.last)))
     .map(x=>x.k);
-}
-function projectEntries(k){return ENTRIES.filter(e=>pkey(e)===k)}
-// 项目整体状态 = 最近一条沉淀的 status（归档态除外，归档靠 archive/reactivate 记录判）
-function projectStatus(k){
-  const es=projectEntries(k).filter(e=>e.type!=="archive"&&e.type!=="reactivate").sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
-  return es.length?es[0].status:"in-progress";
-}
+  }
+  function projectEntries(k){return ENTRIES.filter(e=>pkey(e)===k)}
+  function latestEntry(k){
+    const es=projectEntries(k).slice().sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
+    return es[0]||null;
+  }
+  function latestWorkEntry(k){
+    const es=projectEntries(k).filter(e=>e.type!=="archive"&&e.type!=="reactivate").sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
+    return es[0]||null;
+  }
+  // 项目整体状态 = 归档态优先，否则最近一条普通沉淀的 status
+  function projectStatus(k){
+    if(isArchived(k))return"archived";
+    const e=latestWorkEntry(k);
+    return e?e.status:"in-progress";
+  }
 // 所有非归档项目，按整体状态分组
 function projectsByStatus(status){
   return [...new Set(ENTRIES.map(e=>pkey(e)))].filter(k=>!isArchived(k)&&projectStatus(k)===status);
 }
-function projectStats(k){const es=projectEntries(k);const stales=staleNexts(k);const ps=projectStatus(k);return{status:ps,ip:ps==="in-progress"?1:0,dn:ps==="done"?1:0,bl:ps==="blocked"?1:0,stales:stales.length,td:es.reduce((a,e)=>a+(e.next||[]).filter(n=>!state.done.has(nextKey(e,n))).length,0),last:es.length?es.slice().sort((a,b)=>String(b.ts).localeCompare(String(a.ts)))[0].ts:null,total:es.length}}
-function nextKey(e,n){return ENTRIES.indexOf(e)+"-"+(e.next.indexOf(n))}
-function allTodos(){let out=[];ENTRIES.forEach((e,i)=>(e.next||[]).forEach((n,j)=>{const key=`${i}-${j}`;if(state.done.has(key))return;out.push({text:n.t,prio:n.p,prog:n.prog,project:pname(pkey(e)),pkey:pkey(e),src:e.summary,key,stale:isStale(e,n)})}));return out}
+  function currentNexts(k){const e=latestWorkEntry(k);return e?(e.next||[]).map((n,j)=>({entry:e,next:n,index:j})):[]}
+  function nextKey(e,j){return `${pkey(e)}|${e.ts}|${j}`}
+  function projectStats(k){const es=projectEntries(k);const stales=staleNexts(k);const ps=projectStatus(k);const current=currentNexts(k);return{status:ps,ip:ps==="in-progress"?1:0,dn:ps==="done"?1:0,bl:ps==="blocked"?1:0,stales:stales.length,td:current.filter(x=>!state.done.has(nextKey(x.entry,x.index))).length,last:latestEntry(k)?.ts||null,total:es.length}}
+  function allTodos(){let out=[];activeProjects().forEach(p=>currentNexts(p).forEach(x=>{const key=nextKey(x.entry,x.index);if(state.done.has(key))return;out.push({text:x.next.t,prio:x.next.p,prog:x.next.prog,project:pname(p),pkey:p,src:x.entry.summary,key,stale:isStale(x.entry,x.next)})}));return out}
+  function queryText(){return state.q.trim().toLowerCase()}
+  function todoMatches(t){const q=queryText();return !q||`${t.text} ${t.project} ${t.src}`.toLowerCase().includes(q)}
+  function projectMatches(k){const q=queryText();if(!q)return true;return `${pname(k)} ${projectEntries(k).map(e=>`${e.summary} ${(e.next||[]).map(n=>n.t).join(" ")}`).join(" ")}`.toLowerCase().includes(q)}
 
 // ============ 超期推断（疑似阻塞）============
 // 规则：一条 next 从首次出现算起，超过 STALE_DAYS 天，且期间没有新沉淀的
 // summary/excerpt 提到它的关键词，则判为"疑似阻塞"。不改原始数据，仅渲染时叠加。
-const STALE_DAYS=15;
-// 缓存：next文本 -> 首次出现的 ts
-const _firstSeen={};
-function firstSeenTs(e,n){
-  const k=n.t;
+  const STALE_DAYS=15;
+  // 缓存：next文本 -> 首次出现的 ts
+  const _firstSeen={};
+  function firstSeenTs(e,n){
+    const k=`${pkey(e)}|${n.t}`;
   if(_firstSeen[k]===undefined){
     // 在所有更早的、同项目的沉淀里找这条 next 首次出现的时间
     let earliest=e.ts;
@@ -315,23 +329,22 @@ function isAdvancedAfter(e,n){
   return ENTRIES.some(x=>pkey(x)===pkey(e)&&String(x.ts)>String(fs)&&
     (x.summary.includes(k)||(x.excerpt||"").includes(k)));
 }
-function isStale(e,n){
-  // 仅对进行中项目的 next 判
-  if(e.status==="done")return false;
+  function isStale(e,n){
+    // 仅对进行中项目的 next 判
+    if(projectStatus(pkey(e))!=="in-progress")return false;
   const fs=firstSeenTs(e,n);
   const days=(Date.now()-new Date(fs).getTime())/86400000;
   return days>STALE_DAYS&&!isAdvancedAfter(e,n);
 }
 // 收集某项目的所有疑似阻塞 next（去重，按首次出现时间）
-function staleNexts(p){
-  const es=projectEntries(p);
-  const seen=new Set();const out=[];
-  es.forEach(e=>(e.next||[]).forEach(n=>{
-    if(seen.has(n.t))return;seen.add(n.t);
-    if(isStale(e,n))out.push({t:n.t,firstSeen:firstSeenTs(e,n),src:e.summary});
-  }));
-  return out;
-}
+  function staleNexts(p){
+    const seen=new Set();const out=[];
+    currentNexts(p).forEach(x=>{const e=x.entry;const n=x.next;
+      if(seen.has(n.t))return;seen.add(n.t);
+      if(isStale(e,n))out.push({t:n.t,firstSeen:firstSeenTs(e,n),src:e.summary});
+    });
+    return out;
+  }
 
 // 从 entry 推断 goal/stage（取最新一条的 frontmatter，正文里没有就空）
 const META={};
@@ -357,7 +370,7 @@ async function getBody(file){
 }
 
 function renderNav(){
-  const aps=activeProjects();
+  const aps=activeProjects().filter(projectMatches);
   let html="";
   aps.forEach(p=>{const ps=projectStats(p);html+=`<div class="nav-item ${state.view==="detail"&&state.proj===p?"active":""}" data-proj="${esc(p)}"><span class="swatch" style="background:${colorOf(p)}"></span><span class="name">${esc(pname(p))}</span>${ps.td?`<span class="badge">${ps.td}</span>`:`<span class="meta">${ps.last?fmt(ps.last):""}</span>`}</div>`});
   $("#nav-projects").innerHTML=html;
@@ -378,21 +391,22 @@ function renderStats(){
   $("#hero-count").textContent=`按项目分组 · ${todo} 项待办`;
 }
 
-function renderHero(){
-  const todos=allTodos();
-  const byP={};todos.forEach(t=>{(byP[t.pkey]=byP[t.pkey]||[]).push(t)});
-  const order=activeProjects();
-  let html="";
+  function renderHero(){
+    const todos=allTodos().filter(todoMatches);
+    const byP={};todos.forEach(t=>{(byP[t.pkey]=byP[t.pkey]||[]).push(t)});
+    const order=activeProjects().filter(projectMatches);
+    let html="";
   order.forEach(p=>{if(!byP[p])return;html+=`<div class="todo-group"><div class="gh" data-proj="${esc(p)}"><span class="swatch" style="background:${colorOf(p)}"></span>${esc(pname(p))} <span style="color:var(--text-3);font-weight:400">· ${byP[p].length}</span></div>`;byP[p].forEach(t=>{const done=state.done.has(t.key);const staleMark=t.stale?` <span style="font-size:10px;color:var(--amber);font-weight:600">⏰疑似阻塞</span>`:"";html+=`<div class="todo-row ${done?"done":""}"><div class="check ${done?"done":""}" data-key="${t.key}"></div><div class="todo-text">${esc(t.text)} ${prioChip(t.prio)}${staleMark}<div class="todo-src">来自「<span class="tag">${esc(t.src)}</span>」</div></div></div>`});html+="</div>"});
-  if(!todos.length)html=`<div class="empty">🎉 没有待办</div>`;
+    if(!todos.length)html=`<div class="empty">${queryText()?"没有匹配的待办":"🎉 没有待办"}</div>`;
+    $("#hero-count").textContent=`按项目分组 · ${todos.length} 项待办`;
   $("#hero-body").innerHTML=html;
   $("#hero-body").querySelectorAll(".check").forEach(c=>{c.onclick=ev=>{ev.stopPropagation();const k=c.dataset.key;state.done.has(k)?state.done.delete(k):state.done.add(k);render()}});
   $("#hero-body").querySelectorAll(".gh").forEach(g=>{g.onclick=()=>openDetail(g.dataset.proj)});
 }
 
-function renderProjectCards(){
-  const aps=activeProjects();
-  if(!aps.length){$("#pgrid").innerHTML=`<div class="empty">没有进行中的项目</div>`;return}
+  function renderProjectCards(){
+    const aps=activeProjects().filter(projectMatches);
+    if(!aps.length){$("#pgrid").innerHTML=`<div class="empty">${queryText()?"没有匹配的项目":"没有进行中的项目"}</div>`;return}
   $("#pgrid").innerHTML=aps.map(p=>{const s=projectStats(p);const es=projectEntries(p).sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));const brief=es.length?es[0].summary:"";return `<div class="pcard" data-proj="${esc(p)}"><div class="pcard-head"><span class="sw" style="background:${colorOf(p)}"></span><span class="pn">${esc(pname(p))}</span><span class="chip st-${s.status}">${statusLabel(s.status)}</span></div>${brief?`<div class="pcard-goal">${esc(brief)}</div>`:""}${s.stales?`<div style="font-size:11px;color:var(--amber);padding:0 0 8px">⏰ ${s.stales} 项疑似阻塞待办</div>`:""}<div class="pcard-foot"><span>更新 ${s.last?fmt(s.last):"-"}</span><span class="todo">${s.td?"待办事项："+s.td:""}</span></div></div>`}).join("");
   $("#pgrid").querySelectorAll(".pcard").forEach(c=>{c.onclick=()=>openDetail(c.dataset.proj)});
 }
@@ -408,6 +422,7 @@ function renderStatusView(){
   }else{
     projects=projectsByStatus(state.status).map(k=>({k,last:projectEntries(k).map(e=>e.ts).sort().reverse()[0]})).sort((a,b)=>String(b.last).localeCompare(String(a.last))).map(x=>x.k);
   }
+  projects=projects.filter(projectMatches);
   $("#hero-body").innerHTML=`<div class="empty">状态筛选：${label} · 共 ${projects.length} 个项目（待办驾驶舱已隐藏，点「总览」恢复）</div>`;
   if(!projects.length){$("#pgrid").innerHTML=`<div class="empty">没有${label}的项目</div>`;return}
   const chipClass=state.status==="archived"?"st-archived":`st-${state.status}`;
@@ -417,14 +432,14 @@ function renderStatusView(){
   $("#pgrid").querySelectorAll(".pcard").forEach(c=>{c.onclick=()=>{state.status=null;openDetail(c.dataset.proj)}});
 }
 
-function openDetail(p){state.view="detail";state.proj=p;state.q="";state.tlExpanded=false;$("#search2").value="";renderNav();renderDetail();$("#view-dashboard").classList.add("hidden");$("#view-detail").classList.remove("hidden");window.scrollTo(0,0)}
+function openDetail(p){state.view="detail";state.proj=p;state.q="";state.tlExpanded=false;$("#search2").value="";$("#detail-root").innerHTML=`<div class="loading">加载中…</div>`;renderNav();renderDetail();$("#view-dashboard").classList.add("hidden");$("#view-detail").classList.remove("hidden");window.scrollTo(0,0)}
 function backToDash(){state.view="dashboard";state.proj=null;state.status=null;state.q="";$("#search").value="";renderNav();render();$("#view-detail").classList.add("hidden");$("#view-dashboard").classList.remove("hidden")}
 
 async function renderDetail(){
   const p=state.proj;const meta=await loadMeta(p);const s=projectStats(p);const es=projectEntries(p);
   const q=state.q.toLowerCase();
   const fEs=es.filter(e=>!q||(e.summary+" "+(e.next||[]).map(n=>n.t).join(" ")).toLowerCase().includes(q));
-  const todos=es.filter(e=>e.next&&e.next.length).flatMap(e=>e.next.map(n=>({t:n.t,p:n.p,prog:n.prog,src:e.summary})));
+  const todos=currentNexts(p).map(x=>({t:x.next.t,p:x.next.p,prog:x.next.prog,src:x.entry.summary}));
   const risks=es.filter(e=>e.status==="blocked");
   const stales=staleNexts(p);
   const decisions=es.filter(e=>e.type==="decision");
@@ -481,11 +496,11 @@ function prevMonth(ym){const [y,m]=ym.split('-').map(Number);const d=new Date(y,
 function recentMonths(n){const out=[];let ym=ymStr(new Date());for(let i=0;i<n;i++){out.push(ym);ym=prevMonth(ym)}return out}
 
 async function loadMonth(ym,force){
-  if(LOADED_MONTHS.has(ym)&&!force)return;
+  if(LOADED_MONTHS.has(ym)&&!force)return false;
   LOADED_MONTHS.add(ym);
   try{
     const r=await fetch(`data/index/${ym}.jsonl?ts=`+Date.now());
-    if(!r.ok)return;
+    if(!r.ok)return false;
     const txt=await r.text();
     const rows=txt.trim().split("\n").filter(Boolean).map(l=>{try{return JSON.parse(l)}catch(e){return null}}).filter(Boolean);
     // force 模式：替换该月数据（捕获新增）；否则合并去重
@@ -496,7 +511,8 @@ async function loadMonth(ym,force){
       const existing=new Set(ENTRIES.map(e=>e.file));
       rows.forEach(r=>{if(!existing.has(r.file))ENTRIES.push(r)});
     }
-  }catch(e){}
+    return rows.length>0;
+  }catch(e){return false}
 }
 
 async function load(){
@@ -518,7 +534,7 @@ async function loadEarlier(){
   let ym=prevMonth(earliest);
   let loaded=0;
   for(let i=0;i<6;i++){ // 一次往前探 6 个月
-    if(!LOADED_MONTHS.has(ym)){await loadMonth(ym);if(LOADED_MONTHS.has(ym))loaded++}
+    if(!LOADED_MONTHS.has(ym)&&await loadMonth(ym))loaded++;
     ym=prevMonth(ym);
   }
   if(loaded){ENTRIES.sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));render()}
@@ -541,6 +557,7 @@ $("#sidebar").addEventListener("click",ev=>{
 });
 $("#search").addEventListener("input",e=>{state.q=e.target.value;render()});
 $("#search2").addEventListener("input",e=>{state.q=e.target.value;renderDetail()});
+$("#loadEarlier").onclick=async()=>{const btn=$("#loadEarlier");btn.textContent="正在加载…";const n=await loadEarlier();btn.textContent=n?"加载更早的记录":"没有更早的记录";setTimeout(()=>{btn.textContent="加载更早的记录"},1800)};
 $("#backBtn").onclick=backToDash;
 $("#s-proj").onclick=()=>{document.querySelector("#pgrid").scrollIntoView({behavior:"smooth"})};
 $("#s-todo").onclick=()=>{document.querySelector(".hero").scrollIntoView({behavior:"smooth"})};
