@@ -74,11 +74,14 @@ class EnvHandler(SimpleHTTPRequestHandler):
         except (UnicodeDecodeError, UnicodeEncodeError):
             pass
         q = parse_qs(urlparse(raw).query)
-        rel = (q.get("path", [""])[0]).lstrip("/")
-        rel = rel.replace("..", "").strip("/")
-        full = os.path.join(self.env, rel) if rel else self.env
+        raw_path = (q.get("path", [""])[0])
+        if os.path.isabs(raw_path):
+            full = raw_path
+        else:
+            rel = raw_path.lstrip("/").replace("..", "").strip("/")
+            full = os.path.join(self.env, rel) if rel else self.env
         if not os.path.exists(full):
-            self._send_text(404, "文件不存在: " + rel)
+            self._send_text(404, "文件不存在: " + raw_path)
             return
         msg = reveal_in_file_manager(full)
         self._send_text(200, msg)

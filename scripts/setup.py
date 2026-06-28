@@ -145,26 +145,55 @@ def do_config(args):
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
         config = json.load(f)
 
-    keys = {"env_path": "运行环境路径", "serve_port": "本地服务端口", "default_agent": "默认 agent"}
+    current_env = discover_env()
     changed = False
-    for k, label in keys.items():
-        v = getattr(args, k, None)
-        if v is not None:
-            config[k] = int(v) if k == "serve_port" else v
-            print(f"✅ {label} → {config[k]}")
-            changed = True
+
+    if args.env is not None:
+        _set_env_path(args.env)
+        changed = True
+    if args.port is not None:
+        config["serve_port"] = args.port
+        print(f"✅ 本地服务端口 → {args.port}")
+        changed = True
+    if args.agent is not None:
+        config["default_agent"] = args.agent
+        print(f"✅ 默认 agent → {args.agent}")
+        changed = True
+
     if not changed:
         print("当前配置（回车保持不变）：")
-        for k, label in keys.items():
-            cur = config.get(k, "")
-            v = ask(label, str(cur))
-            if v and v != str(cur):
-                config[k] = int(v) if k == "serve_port" else v
-                print(f"   ✅ 已改为：{config[k]}")
+        v = ask("运行环境路径", current_env)
+        if v and os.path.expanduser(v) != os.path.expanduser(current_env):
+            _set_env_path(v)
+        cur_port = str(config.get("serve_port", DEFAULT_PORT))
+        v = ask("本地服务端口", cur_port)
+        if v and v != cur_port:
+            config["serve_port"] = int(v)
+            print(f"   ✅ 已改为：{config['serve_port']}")
+        cur_agent = config.get("default_agent", "")
+        v = ask("默认 agent 标识", cur_agent)
+        if v and v != cur_agent:
+            config["default_agent"] = v
+            print(f"   ✅ 已改为：{config['default_agent']}")
+
     with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(config, f, ensure_ascii=False, indent=2)
     print(f"\n⚙️  config.json 已更新")
     return 0
+
+
+def _set_env_path(env):
+    """更新全局运行环境标记（跨工具共享，不进 config.json）。"""
+    env = os.path.expanduser(env)
+    if env != DEFAULT_ENV:
+        with open(GLOBAL_ENV_MARKER, "w", encoding="utf-8") as f:
+            f.write(env)
+        print(f"✅ 运行环境路径 → {env}")
+    else:
+        if os.path.exists(GLOBAL_ENV_MARKER):
+            os.remove(GLOBAL_ENV_MARKER)
+        print(f"✅ 运行环境路径 → {DEFAULT_ENV}（默认）")
+    return env
 
 
 def _print_usage(port, env):

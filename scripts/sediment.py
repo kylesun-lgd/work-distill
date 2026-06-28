@@ -19,7 +19,6 @@
 必填：--project --type --summary --agent
 """
 import argparse
-import fcntl
 import json
 import os
 import random
@@ -27,6 +26,14 @@ import re
 import string
 import sys
 from datetime import datetime, timezone, timedelta
+
+try:
+    import fcntl
+    _LOCK_EX = fcntl.LOCK_EX
+    _LOCK_UN = fcntl.LOCK_UN
+except ImportError:
+    fcntl = None
+    _LOCK_EX = _LOCK_UN = 0  # Windows 无 fcntl，跳过分文件锁
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SKILL_DIR = os.path.dirname(SCRIPT_DIR)
@@ -40,6 +47,12 @@ TZ = timezone(timedelta(hours=8))
 
 VALID_TYPES = {"progress", "decision", "knowledge", "archive", "reactivate"}
 VALID_STATUS = {"in-progress", "done", "blocked", "archived"}
+
+
+def file_lock(lock_file, op):
+    """跨平台文件锁：Unix 用 fcntl，Windows 无锁（单用户本地场景可接受）。"""
+    if fcntl is not None:
+        fcntl.flock(lock_file, op)
 
 
 def discover_env():
@@ -173,16 +186,16 @@ def write_project_md(paths, entry, goal, stage, force_meta):
 
     lock_path = md_path + ".lock"
     with open(lock_path, "w") as lf:
-        fcntl.flock(lf, fcntl.LOCK_EX)
+        file_lock(lf, _LOCK_EX)
         try:
             _write_md_inner(md_path, entry, goal, stage)
         finally:
-            fcntl.flock(lf, fcntl.LOCK_UN)
-    return md_path
+            file_lock(lf, _LOCK_UN)
+    return md_path, goal, stage
 
 
 def resolve_meta(md_path, goal, stage, force):
-    if force or not os.path.exists(md_path):
+    if not os.path.exists(md_path):
         return goal, stage
     try:
         with open(md_path, "r", encoding="utf-8") as f:
@@ -194,7 +207,9 @@ def resolve_meta(md_path, goal, stage, force):
         if m:
             old_goal = m.group(1).strip()
             old_stage = m.group(2).strip()
-        return (goal if force and goal else (goal or old_goal)), (stage if force and stage else (stage or old_stage))
+        if force:
+            return (goal if goal else old_goal), (stage if stage else old_stage)
+        return old_goal, old_stage
     except OSError:
         return goal, stage
 
@@ -309,7 +324,7 @@ def write_repo(paths, entry):
     os.makedirs(paths["index_dir"], exist_ok=True)
     idx_file = os.path.join(paths["index_dir"], f"{ym}.jsonl")
     with open(idx_file + ".lock", "w") as lf:
-        fcntl.flock(lf, fcntl.LOCK_EX)
+        file_lock(lf, _LOCK_EX)
         try:
             with open(idx_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps({
@@ -323,9 +338,11 @@ def write_repo(paths, entry):
                     "file": rel_path,
                     "next": entry["next"],
                     "artifacts": entry["artifacts"],
+                    "goal": entry.get("goal", ""),
+                    "stage": entry.get("stage", ""),
                 }, ensure_ascii=False) + "\n")
         finally:
-            fcntl.flock(lf, fcntl.LOCK_UN)
+            file_lock(lf, _LOCK_UN)
     return rel_path
 
 
@@ -340,6 +357,10 @@ def _fragment_md(entry):
     fm += f"type: {entry['type']}\n"
     fm += f"summary: {entry['summary']}\n"
     fm += f"status: {entry['status']}\n"
+    if entry.get("goal"):
+        fm += f"goal: {entry['goal']}\n"
+    if entry.get("stage"):
+        fm += f"stage: {entry['stage']}\n"
     if entry["next"]:
         fm += "next:\n"
         for n in entry["next"]:
@@ -478,6 +499,9 @@ def main():
             err(f"--next 每项必须是对象且含 t 字段: {n}")
             sys.exit(2)
 
+    if not check_env_ready(paths):
+        sys.exit(1)
+
     body = sys.stdin.read()
 
     # 用 config 默认 agent 兜底（仍以参数为准）
@@ -499,8 +523,20 @@ def main():
         "body": body,
     }
 
-    # 1. 写项目 MD
-    md_path = write_project_md(paths, entry, args.goal, args.stage, args.update_meta)
+    # 1. 写项目 MD（resolve 后的 goal/stage 同步给网页索引）
+    md_path, goal, stage = write_project_md(paths, entry, args.goal, args.stage, args.update_meta)
+    entry["goal"] = goal
+    entry["stage"] = stage
+
+    # 提示：传了 goal/stage 但被"首次写后不覆盖"规则忽略
+    if not args.update_meta:
+        ignored = []
+        if args.goal and args.goal != goal:
+            ignored.append(f"--goal '{args.goal}'")
+        if args.stage and args.stage != stage:
+            ignored.append(f"--stage '{args.stage}'")
+        if ignored:
+            print(f"   ℹ️  {', '.join(ignored)} 未生效（目标/阶段首次写后不覆盖，当前沿用 goal='{goal}' stage='{stage}'）。如需覆盖请加 --update-meta", file=sys.stderr)
 
     # 2. 写网页数据
     rel = write_repo(paths, entry)

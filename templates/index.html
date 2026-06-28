@@ -339,10 +339,15 @@ async function loadMeta(p){
   if(META[p])return META[p];
   const es=projectEntries(p).slice().sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
   for(const e of es){
+    const g=e.goal||"";
+    const s=e.stage||"";
+    if(g||s){META[p]={goal:g,stage:s};return META[p]}
+  }
+  for(const e of es){
     const txt=await getBody(e.file);
-    const gm=(txt.match(/goal:\s*(.+)/)||[])[1]||"";
-    const sm=(txt.match(/stage:\s*(.+)/)||[])[1]||"";
-    if(gm||sm){META[p]={goal:gm,stage:sm};return META[p]}
+    const gm=(txt.match(/^goal:\s*(.+)$/m)||[])[1]||"";
+    const sm=(txt.match(/^stage:\s*(.+)$/m)||[])[1]||"";
+    if(gm||sm){META[p]={goal:gm.trim(),stage:sm.trim()};return META[p]}
   }
   META[p]={goal:"",stage:""};return META[p]
 }
@@ -423,7 +428,7 @@ async function renderDetail(){
   const risks=es.filter(e=>e.status==="blocked");
   const stales=staleNexts(p);
   const decisions=es.filter(e=>e.type==="decision");
-  const arts=es.filter(e=>e.artifacts&&e.artifacts.length).flatMap(e=>e.artifacts.map(a=>({a,src:e.summary,ts:e.ts,file:e.file})));
+  const arts=es.filter(e=>e.artifacts&&e.artifacts.length).flatMap(e=>e.artifacts.map(a=>({path:a,src:e.summary,ts:e.ts})));
   const tlSorted=fEs.slice().sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
   const tlShow=state.tlExpanded?tlSorted:tlSorted.slice(0,5);
 
@@ -436,7 +441,7 @@ async function renderDetail(){
     <div class="block"><div class="block-head"><span class="ico">🎯</span><h2>目标与当前焦点</h2></div>${todos.length?`<ul class="focus-list">${todos.map(t=>`<li><span class="bullet">▸</span><div class="ft"><div class="ft-row"><span class="ft-text">${esc(t.t)}</span>${prioChip(t.p)}<span class="ft-prog">${progBar(t.prog)}</span></div><div class="fsrc">来自「${esc(t.src)}」</div></div></li>`).join("")}</ul>`:`<div class="empty">暂无待办，项目可能已完成</div>`}</div>
     ${(risks.length||stales.length)?`<div class="block"><div class="block-head"><span class="ico">⛔</span><h2>风险与阻塞</h2><span class="right">${risks.length+stales.length} 项</span></div>${risks.map(r=>`<div class="risk"><span class="ric">⛔</span><div class="rt"><div class="rtitle">${esc(r.summary)} <span style="font-size:10px;color:var(--red);font-weight:600">手动标注</span></div><div class="rdesc">来自 ${fmt(r.ts)}</div><div class="rmeta">${esc((r.next||[]).map(n=>n.t).join("；")||"无明确解法")}</div></div></div>`).join("")}${stales.map(st=>`<div class="risk" style="background:var(--bg-3);border-color:var(--amber)"><span class="ric" style="color:var(--amber)">⏰</span><div class="rt"><div class="rtitle">${esc(st.t)} <span style="font-size:10px;color:var(--amber);font-weight:600">疑似阻塞</span></div><div class="rdesc">首次出现于 ${fmt(st.firstSeen)}</div><div class="rmeta" style="color:var(--amber)">超 ${STALE_DAYS} 天未被新沉淀推进 · 来自「${esc(st.src)}」</div></div></div>`).join("")}</div>`:""}
     ${decisions.length?`<div class="block"><div class="block-head"><span class="ico">⚖️</span><h2>关键决策记录</h2><span class="right">${decisions.length} 项</span></div>${decisions.map(d=>`<div class="dec"><div class="dtitle">${esc(d.summary)}</div><div class="dmeta">${fmt(d.ts)} · ${esc(d.agent)}</div></div>`).join("")}</div>`:""}
-    ${arts.length?`<div class="block"><div class="block-head"><span class="ico">📎</span><h2>产出资料</h2><span class="right">${arts.length} 份 · 右键打开菜单</span></div><div class="art-grid">${arts.map(a=>`<div class="art" data-path="${esc(a.file)}"><span class="aic">📄</span><span class="an" title="${esc(a.a)}">${esc(a.a)}</span><span class="am">${fmt(a.ts)}</span></div>`).join("")}</div></div>`:""}
+    ${arts.length?`<div class="block"><div class="block-head"><span class="ico">📎</span><h2>产出资料</h2><span class="right">${arts.length} 份 · 右键打开菜单</span></div><div class="art-grid">${arts.map(a=>`<div class="art" data-path="${esc(a.path)}"><span class="aic">📄</span><span class="an" title="${esc(a.path)}">${esc(a.path)}</span><span class="am">${fmt(a.ts)}</span></div>`).join("")}</div></div>`:""}
     <div class="block"><div class="block-head"><span class="ico">📜</span><h2>附录 · 更新时间轴</h2><span class="right">${tlSorted.length} 条 · ${state.tlExpanded?"已展开":"近 5 条"}</span></div>${tlSorted.length?`<div class="tl">${tlShow.map(e=>{const nextHtml=(e.next&&e.next.length)?`<div class="tl-next"><b>▸ 下一步：</b>${esc(e.next.map(n=>n.t).join("；"))}</div>`:"";return `<div class="tl-item ${e.type} ${e.status==="blocked"?"blocked":""}"><div class="tl-card"><div class="tl-meta"><span class="chip type-${e.type}">${typeLabel(e.type)}</span><span class="chip st-${e.status}">${statusLabel(e.status)}</span><span>${fmt(e.ts)}</span><span>· ${esc(e.agent)}</span></div><div class="tl-title">${esc(e.summary)}</div>${nextHtml}</div></div>`}).join("")}</div>${(tlSorted.length>5&&!state.tlExpanded)?`<div class="show-more" id="showMore">展开剩余 ${tlSorted.length-5} 条 ▾</div>`:""}`:`<div class="empty">没有匹配的记录</div>`}</div>
   `;
   const sm=$("#showMore");if(sm)sm.onclick=()=>{state.tlExpanded=true;renderDetail()};
