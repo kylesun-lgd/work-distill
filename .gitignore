@@ -1,0 +1,10 @@
+# 运行时产物（本机生成，不上传）
+config.json
+.serve.pid
+.serve.log
+*.lock
+__pycache__/
+*.pyc
+
+# 运行环境数据（用户初始化后在各自机器生成，不属于 skill 本身）
+# 注意：运行环境默认在 ~/Documents/Zcode/work-distill，不在此仓库内

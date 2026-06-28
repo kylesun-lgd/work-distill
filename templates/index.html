@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>工作沉淀 · 项目驾驶舱</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --bg-2:#ffffff; --bg-3:#eef0f4;
+    --border:#e3e6ec; --border-2:#d4d8e0;
+    --text:#1a1d24; --text-2:#5b6270; --text-3:#8a909c;
+    --accent:#3b5bdb; --accent-soft:#eaf0ff;
+    --green:#2f9e44; --green-soft:#e7f6ec;
+    --amber:#e8590c; --amber-soft:#fff0e6;
+    --red:#e03131; --red-soft:#fdeaea;
+    --shadow:0 1px 2px rgba(16,24,40,.04),0 4px 12px rgba(16,24,40,.06);
+    --radius:12px;
+  }
+  [data-theme="dark"]{
+    --bg:#14161a; --bg-2:#1c1f25; --bg-3:#22262e;
+    --border:#2a2f38; --border-2:#353b46;
+    --text:#e8eaed; --text-2:#a6acba; --text-3:#79808f;
+    --accent:#6e8cff; --accent-soft:#1d2740;
+    --green:#51cf66; --green-soft:#15291f;
+    --amber:#ff922b; --amber-soft:#2e2114;
+    --red:#ff6b6b; --red-soft:#2c1717;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 12px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box} html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .app{display:flex;min-height:100vh}
+
+  .sidebar{width:250px;flex:0 0 250px;background:var(--bg-2);border-right:1px solid var(--border);padding:18px 14px;position:sticky;top:0;height:100vh;overflow-y:auto}
+  .brand{font-weight:700;font-size:15px;padding:4px 8px 14px;display:flex;align-items:center;gap:8px}
+  .brand .dot{width:9px;height:9px;border-radius:3px;background:var(--accent)}
+  .nav-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);padding:10px 8px 6px}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;color:var(--text-2);user-select:none}
+  .nav-item:hover{background:var(--bg-3)}
+  .nav-item.active{background:var(--accent-soft);color:var(--accent);font-weight:600}
+  .nav-item .swatch{width:9px;height:9px;border-radius:3px;flex:0 0 auto}
+  .nav-item .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .nav-item .badge{font-size:11px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--red);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:600}
+  .nav-item .meta{font-size:10px;color:var(--text-3)}
+
+  .main{flex:1;min-width:0;padding:22px 26px 60px}
+  .topbar{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+  .topbar h1{font-size:18px;margin:0;font-weight:700}
+  .search{flex:1;max-width:380px;margin-left:auto;background:var(--bg-2);border:1px solid var(--border);border-radius:9px;padding:7px 12px;color:var(--text);font-size:13px}
+  .search:focus{outline:none;border-color:var(--accent)}
+  .btn{background:var(--bg-2);border:1px solid var(--border);border-radius:9px;padding:7px 12px;cursor:pointer;color:var(--text-2);font-size:13px}
+  .btn:hover{border-color:var(--border-2)}
+
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+  .stat{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow);cursor:pointer;transition:transform .1s,border-color .1s}
+  .stat:hover{transform:translateY(-1px);border-color:var(--border-2)}
+  .stat .k{font-size:12px;color:var(--text-3);margin-bottom:6px}
+  .stat .v{font-size:26px;font-weight:700;letter-spacing:-.02em}
+  .stat.todo .v{color:var(--red);font-size:30px}
+  .stat .sub{font-size:11px;color:var(--text-3);margin-top:2px}
+
+  .hero{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:22px;overflow:hidden}
+  .hero-head{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border);background:var(--bg-3)}
+  .hero-head h2{margin:0;font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+  .hero-head .count{font-size:12px;color:var(--text-3);margin-left:auto}
+  .hero-body{padding:6px 8px 12px;max-height:320px;overflow-y:auto}
+  .todo-group{padding:8px 10px 10px}
+  .todo-group .gh{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2);font-weight:600;padding:4px 2px 8px;cursor:pointer}
+  .todo-group .gh:hover{color:var(--accent)}
+  .todo-group .gh .swatch{width:8px;height:8px;border-radius:2px}
+  .todo-row{display:flex;align-items:flex-start;gap:10px;padding:7px 8px;border-radius:8px}
+  .todo-row:hover{background:var(--bg-3)}
+  .check{flex:0 0 auto;width:17px;height:17px;border-radius:5px;margin-top:1px;border:1.6px solid var(--border-2);cursor:pointer;position:relative;transition:all .12s}
+  .check:hover{border-color:var(--accent)}
+  .check.done{background:var(--green);border-color:var(--green)}
+  .check.done::after{content:"✓";position:absolute;inset:0;color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:700}
+  .todo-text{flex:1;font-size:13px}
+  .todo-row.done .todo-text{color:var(--text-3);text-decoration:line-through}
+  .todo-src{font-size:11px;color:var(--text-3);margin-top:2px}
+  .todo-src .tag{color:var(--accent)}
+
+  .section-head{display:flex;align-items:center;gap:10px;margin:6px 0 14px}
+  .section-head h2{margin:0;font-size:15px;font-weight:700}
+  .section-head .line{flex:1;height:1px;background:var(--border)}
+  .section-head .hint{font-size:11px;color:var(--text-3)}
+
+  .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+  .pcard{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:15px 16px;cursor:pointer;transition:transform .1s,border-color .1s}
+  .pcard:hover{transform:translateY(-2px);border-color:var(--accent)}
+  .pcard-head{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+  .pcard-head .sw{width:10px;height:10px;border-radius:3px}
+  .pcard-head .pn{font-weight:700;font-size:14px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pcard-head .stage{font-size:11px;color:var(--text-3);background:var(--bg-3);padding:2px 8px;border-radius:8px}
+  .pcard-goal{font-size:12px;color:var(--text-2);margin-bottom:12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .pcard-stats{display:flex;gap:8px;margin-bottom:10px}
+  .pstat{flex:1;text-align:center;background:var(--bg-3);border-radius:8px;padding:6px 4px}
+  .pstat .n{font-size:16px;font-weight:700}
+  .pstat .l{font-size:10px;color:var(--text-3)}
+  .pstat.ip .n{color:var(--amber)} .pstat.bl .n{color:var(--red)}
+  .pcard-foot{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--text-3);border-top:1px solid var(--border);padding-top:9px}
+  .pcard-foot .todo{color:var(--red);font-weight:600;margin-left:auto}
+
+  .empty{padding:40px;text-align:center;color:var(--text-3)}
+  .loading{padding:60px;text-align:center;color:var(--text-3)}
+
+  .detail{max-width:960px}
+  .block{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px;margin-bottom:18px}
+  .block-head{display:flex;align-items:center;gap:9px;margin-bottom:14px}
+  .block-head .ico{font-size:16px}
+  .block-head h2{margin:0;font-size:15px;font-weight:700}
+  .block-head .right{margin-left:auto;font-size:11px;color:var(--text-3)}
+
+  .dh-top{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  .dh-top .sw{width:12px;height:12px;border-radius:3px}
+  .dh-top h2{margin:0;font-size:20px;font-weight:700;flex:1}
+  .dh-top .stage-tag{font-size:12px;color:var(--accent);background:var(--accent-soft);padding:3px 10px;border-radius:10px;font-weight:600}
+  .goal-row{font-size:13px;color:var(--text-2);margin:8px 0 16px}
+  .updated-line{font-size:11px;color:var(--text-3);margin-top:14px}
+
+  .focus-list{list-style:none;padding:0;margin:0}
+  .focus-list li{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)}
+  .focus-list li:last-child{border-bottom:0}
+  .focus-list .bullet{flex:0 0 auto;width:18px;height:18px;border-radius:5px;background:var(--accent-soft);color:var(--accent);font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:700;margin-top:1px}
+  .focus-list .ft{flex:1;font-size:13px}
+  .focus-list .fsrc{font-size:11px;color:var(--text-3);margin-top:2px}
+  .ft-row{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+  .ft-text{flex:1;min-width:0}
+  .ft-prog{display:flex;align-items:center;flex:0 0 auto}
+  .pchip{font-size:10px;padding:1px 6px;border-radius:8px;font-weight:600;border:1px solid;margin-left:6px;flex:0 0 auto}
+  .prog{display:inline-block;width:62px;height:6px;background:var(--bg-3);border-radius:3px;overflow:hidden;vertical-align:middle;border:1px solid var(--border)}
+  .prog-fill{display:block;height:100%;background:var(--accent);border-radius:3px}
+  .prog-txt{font-size:10px;color:var(--text-3);margin-left:4px;vertical-align:middle}
+
+  .risk{display:flex;gap:12px;background:var(--red-soft);border:1px solid var(--red);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+  .risk:last-child{margin-bottom:0}
+  .risk .ric{font-size:18px;flex:0 0 auto}
+  .risk .rt{flex:1}
+  .risk .rtitle{font-weight:600;font-size:13px;margin-bottom:3px}
+  .risk .rdesc{font-size:12px;color:var(--text-2)}
+  .risk .rmeta{font-size:11px;color:var(--red);font-weight:600;margin-top:5px}
+
+  .dec{border-left:3px solid var(--amber);padding:10px 14px;background:var(--bg-3);border-radius:0 8px 8px 0;margin-bottom:10px}
+  .dec:last-child{margin-bottom:0}
+  .dec .dtitle{font-weight:600;font-size:13px;margin-bottom:3px}
+  .dec .ddesc{font-size:12px;color:var(--text-2)}
+  .dec .dmeta{font-size:11px;color:var(--text-3);margin-top:4px}
+
+  .art-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+  .art{display:flex;align-items:center;gap:10px;background:var(--bg-3);border-radius:9px;padding:10px 12px;cursor:pointer;border:1px solid transparent}
+  .art:hover{border-color:var(--accent)}
+  .art .aic{font-size:16px}
+  .art .an{font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+  .art .am{font-size:10px;color:var(--text-3)}
+
+  .tl{position:relative;padding-left:24px}
+  .tl::before{content:"";position:absolute;left:7px;top:6px;bottom:6px;width:2px;background:var(--border)}
+  .tl-item{position:relative;margin-bottom:14px}
+  .tl-item::before{content:"";position:absolute;left:-23px;top:16px;width:11px;height:11px;border-radius:50%;background:var(--bg-2);border:2.5px solid var(--accent)}
+  .tl-item.decision::before{border-color:var(--amber)}
+  .tl-item.knowledge::before{border-color:var(--green)}
+  .tl-item.blocked::before{border-color:var(--red)}
+  .tl-card{background:var(--bg-3);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+  .tl-meta{display:flex;align-items:center;gap:7px;margin-bottom:7px;font-size:11px;color:var(--text-3);flex-wrap:wrap}
+  .chip{font-size:11px;padding:2px 7px;border-radius:10px;font-weight:600;border:1px solid transparent}
+  .chip.type-progress{background:var(--accent-soft);color:var(--accent)}
+  .chip.type-decision{background:var(--amber-soft);color:var(--amber)}
+  .chip.type-knowledge{background:var(--green-soft);color:var(--green)}
+  .chip.st-in-progress{background:var(--amber-soft);color:var(--amber)}
+  .chip.st-done{background:var(--green-soft);color:var(--green)}
+  .chip.st-blocked{background:var(--red-soft);color:var(--red)}
+  .chip.st-archived{background:var(--bg-3);color:var(--text-3)}
+  .tl-title{font-size:14px;font-weight:600;margin:0 0 5px}
+  .tl-excerpt{font-size:13px;color:var(--text-2);margin:0 0 8px;white-space:pre-line}
+  .tl-next{font-size:12px;color:var(--accent);background:var(--accent-soft);padding:6px 10px;border-radius:7px;margin-bottom:6px}
+  .show-more{text-align:center;padding:12px;cursor:pointer;color:var(--accent);font-size:13px;font-weight:600;border:1px dashed var(--border-2);border-radius:9px;margin-top:8px}
+  .show-more:hover{background:var(--bg-3)}
+
+  .art-menu{position:fixed;z-index:1000;background:var(--bg-2);border:1px solid var(--border-2);border-radius:9px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:5px;min-width:190px}
+  .art-menu-item{padding:8px 12px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--text)}
+  .art-menu-item:hover{background:var(--accent-soft);color:var(--accent)}
+  .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:11px 16px;border-radius:9px;font-size:12px;white-space:pre-line;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:90vw}
+
+  .hidden{display:none!important}
+  @media (max-width:880px){.sidebar{display:none}.stats{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><span class="dot"></span> 工作沉淀 · 驾驶舱</div>
+    <div class="nav-item active" id="nav-overview" data-action="overview"><span class="swatch" style="background:var(--accent)"></span><span class="name">总览</span></div>
+    <div class="nav-label">最新项目</div>
+    <div id="nav-projects"></div>
+    <div class="nav-label">状态</div>
+    <div class="nav-item" data-status="in-progress"><span class="swatch" style="background:var(--amber)"></span><span class="name">进行中</span><span class="meta" id="ct-ip">0</span></div>
+    <div class="nav-item" data-status="done"><span class="swatch" style="background:var(--green)"></span><span class="name">已完成</span><span class="meta" id="ct-done">0</span></div>
+    <div class="nav-item" data-status="blocked"><span class="swatch" style="background:var(--red)"></span><span class="name">阻塞</span><span class="meta" id="ct-blocked">0</span></div>
+    <div class="nav-item" data-status="archived"><span class="swatch" style="background:var(--text-3)"></span><span class="name">创意仓库</span><span class="meta" id="ct-archived">0</span></div>
+  </aside>
+
+  <main class="main">
+    <div id="view-dashboard">
+      <div class="topbar">
+        <h1>项目驾驶舱</h1>
+        <input class="search" id="search" placeholder="搜索项目、进展、待办…">
+        <button class="btn" id="themeBtn">🌗 切换配色</button>
+      </div>
+      <div class="stats">
+        <div class="stat" id="s-proj"><div class="k">进行中的项目</div><div class="v" id="stat-proj">0</div><div class="sub">有未完成事项</div></div>
+        <div class="stat" id="s-week"><div class="k">本周更新</div><div class="v" id="stat-week">0</div><div class="sub">条沉淀</div></div>
+        <div class="stat" id="s-month"><div class="k">本月更新</div><div class="v" id="stat-month">0</div><div class="sub">条沉淀</div></div>
+        <div class="stat todo" id="s-todo"><div class="k">待办总数</div><div class="v" id="stat-todo">0</div><div class="sub">未完成 next</div></div>
+      </div>
+      <div class="hero">
+        <div class="hero-head"><h2>📌 待办驾驶舱</h2><span class="count" id="hero-count">按项目分组 · 点击勾选</span></div>
+        <div class="hero-body" id="hero-body"><div class="loading">加载中…</div></div>
+      </div>
+      <div class="section-head"><h2>进行中的项目</h2><span class="hint">按更新时间倒序 · 点击查看详情</span><div class="line"></div></div>
+      <div class="pgrid" id="pgrid"><div class="loading">加载中…</div></div>
+    </div>
+
+    <div id="view-detail" class="hidden">
+      <div class="topbar">
+        <button class="btn" id="backBtn">← 返回总览</button>
+        <input class="search" id="search2" placeholder="在本项目内搜索…">
+        <button class="btn" id="themeBtn2">🌗 切换配色</button>
+      </div>
+      <div class="detail" id="detail-root"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+// 项目颜色（按项目名稳定哈希取色）
+const PALETTE=["#3b5bdb","#7048e8","#0ca678","#e8590c","#1098ad","#ae3ec9","#f06595","#f59f00","#1c7ed6","#9c36b5"];
+const COLORS={};
+function colorOf(p){if(COLORS[p])return COLORS[p];let h=0;for(let i=0;i<p.length;i++)h=(h*31+p.charCodeAt(i))>>>0;const c=PALETTE[h%PALETTE.length];COLORS[p]=c;return c}
+
+let ENTRIES=[];        // 索引条目
+const BODY_CACHE={};   // 分片正文缓存 file->text
+let state={view:"dashboard",proj:null,status:null,q:"",done:new Set(),tlExpanded:false};
+const $=s=>document.querySelector(s);
+
+function fmt(ts){try{const d=new Date(ts);return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}catch(e){return ts}}
+function typeLabel(t){return{progress:"进展",decision:"决策",knowledge:"知识",archive:"归档",reactivate:"重新激活"}[t]||t}
+function statusLabel(s){return{"in-progress":"进行中",done:"已完成",blocked:"阻塞",archived:"创意仓库"}[s]||s}
+function esc(s){return String(s==null?"":s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}
+function prioColor(p){return{高:"var(--red)",中:"var(--amber)",低:"var(--text-3)"}[p]||"var(--text-3)"}
+function prioChip(p){if(!p)return"";const c=prioColor(p);return `<span class="pchip" style="color:${c};border-color:${c}">${esc(p)}</span>`}
+function progBar(prog){const pct=parseInt(prog)||0;return `<span class="prog"><span class="prog-fill" style="width:${pct}%"></span></span><span class="prog-txt">${esc(prog||"0%")}</span>`}
+function todayStr(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function weekStartStr(){const d=new Date();d.setDate(d.getDate()-6);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function monthStartStr(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`}
+
+// 项目聚合键：优先用 slug（跨 agent 稳定），无 slug 的旧数据回退 project 名
+function pkey(e){return e.slug||e.project}
+// 项目显示名：取该 key 下任一条的 project 字段
+function pname(k){const e=ENTRIES.find(x=>pkey(x)===k);return e?e.project:k}
+
+function activeProjects(){
+  // 最新项目 = 未归档且整体状态为进行中的项目
+  return [...new Set(ENTRIES.map(e=>pkey(e)))]
+    .filter(k=>!isArchived(k)&&projectStatus(k)==="in-progress")
+    .map(k=>({k,last:projectEntries(k).map(e=>e.ts).sort().reverse()[0]}))
+    .sort((a,b)=>String(b.last).localeCompare(String(a.last)))
+    .map(x=>x.k);
+}
+// 项目是否处于归档态：最近一条 archive/reactivate 记录是 archive 即归档
+function isArchived(k){
+  const changes=ENTRIES.filter(e=>pkey(e)===k&&(e.type==="archive"||e.type==="reactivate"))
+    .sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
+  return changes.length>0&&changes[0].type==="archive";
+}
+function archivedProjects(){
+  return [...new Set(ENTRIES.map(e=>pkey(e)))].filter(k=>isArchived(k))
+    .map(k=>({k,last:ENTRIES.filter(e=>pkey(e)===k).map(e=>e.ts).sort().reverse()[0]}))
+    .sort((a,b)=>String(b.last).localeCompare(String(a.last)))
+    .map(x=>x.k);
+}
+function projectEntries(k){return ENTRIES.filter(e=>pkey(e)===k)}
+// 项目整体状态 = 最近一条沉淀的 status（归档态除外，归档靠 archive/reactivate 记录判）
+function projectStatus(k){
+  const es=projectEntries(k).filter(e=>e.type!=="archive"&&e.type!=="reactivate").sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
+  return es.length?es[0].status:"in-progress";
+}
+// 所有非归档项目，按整体状态分组
+function projectsByStatus(status){
+  return [...new Set(ENTRIES.map(e=>pkey(e)))].filter(k=>!isArchived(k)&&projectStatus(k)===status);
+}
+function projectStats(k){const es=projectEntries(k);const stales=staleNexts(k);const ps=projectStatus(k);return{status:ps,ip:ps==="in-progress"?1:0,dn:ps==="done"?1:0,bl:ps==="blocked"?1:0,stales:stales.length,td:es.reduce((a,e)=>a+(e.next||[]).filter(n=>!state.done.has(nextKey(e,n))).length,0),last:es.length?es.slice().sort((a,b)=>String(b.ts).localeCompare(String(a.ts)))[0].ts:null,total:es.length}}
+function nextKey(e,n){return ENTRIES.indexOf(e)+"-"+(e.next.indexOf(n))}
+function allTodos(){let out=[];ENTRIES.forEach((e,i)=>(e.next||[]).forEach((n,j)=>{const key=`${i}-${j}`;if(state.done.has(key))return;out.push({text:n.t,prio:n.p,prog:n.prog,project:pname(pkey(e)),pkey:pkey(e),src:e.summary,key,stale:isStale(e,n)})}));return out}
+
+// ============ 超期推断（疑似阻塞）============
+// 规则：一条 next 从首次出现算起，超过 STALE_DAYS 天，且期间没有新沉淀的
+// summary/excerpt 提到它的关键词，则判为"疑似阻塞"。不改原始数据，仅渲染时叠加。
+const STALE_DAYS=15;
+// 缓存：next文本 -> 首次出现的 ts
+const _firstSeen={};
+function firstSeenTs(e,n){
+  const k=n.t;
+  if(_firstSeen[k]===undefined){
+    // 在所有更早的、同项目的沉淀里找这条 next 首次出现的时间
+    let earliest=e.ts;
+    ENTRIES.filter(x=>pkey(x)===pkey(e)&&x.next&&x.next.some(m=>m.t===k))
+      .forEach(x=>{if(String(x.ts)<String(earliest))earliest=x.ts});
+    _firstSeen[k]=earliest;
+  }
+  return _firstSeen[k];
+}
+// 这条 next 是否被"首次出现之后"的某条沉淀提到（summary/excerpt 含其关键词）
+function isAdvancedAfter(e,n){
+  const k=(n.t||"").trim();
+  if(k.length<2)return false; // 太短不判
+  const fs=firstSeenTs(e,n);
+  return ENTRIES.some(x=>pkey(x)===pkey(e)&&String(x.ts)>String(fs)&&
+    (x.summary.includes(k)||(x.excerpt||"").includes(k)));
+}
+function isStale(e,n){
+  // 仅对进行中项目的 next 判
+  if(e.status==="done")return false;
+  const fs=firstSeenTs(e,n);
+  const days=(Date.now()-new Date(fs).getTime())/86400000;
+  return days>STALE_DAYS&&!isAdvancedAfter(e,n);
+}
+// 收集某项目的所有疑似阻塞 next（去重，按首次出现时间）
+function staleNexts(p){
+  const es=projectEntries(p);
+  const seen=new Set();const out=[];
+  es.forEach(e=>(e.next||[]).forEach(n=>{
+    if(seen.has(n.t))return;seen.add(n.t);
+    if(isStale(e,n))out.push({t:n.t,firstSeen:firstSeenTs(e,n),src:e.summary});
+  }));
+  return out;
+}
+
+// 从 entry 推断 goal/stage（取最新一条的 frontmatter，正文里没有就空）
+const META={};
+async function loadMeta(p){
+  if(META[p])return META[p];
+  const es=projectEntries(p).slice().sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
+  for(const e of es){
+    const txt=await getBody(e.file);
+    const gm=(txt.match(/goal:\s*(.+)/)||[])[1]||"";
+    const sm=(txt.match(/stage:\s*(.+)/)||[])[1]||"";
+    if(gm||sm){META[p]={goal:gm,stage:sm};return META[p]}
+  }
+  META[p]={goal:"",stage:""};return META[p]
+}
+async function getBody(file){
+  if(BODY_CACHE[file])return BODY_CACHE[file];
+  try{const r=await fetch(file);const t=await r.text();BODY_CACHE[file]=t;return t}catch(e){return ""}
+}
+
+function renderNav(){
+  const aps=activeProjects();
+  let html="";
+  aps.forEach(p=>{const ps=projectStats(p);html+=`<div class="nav-item ${state.view==="detail"&&state.proj===p?"active":""}" data-proj="${esc(p)}"><span class="swatch" style="background:${colorOf(p)}"></span><span class="name">${esc(pname(p))}</span>${ps.td?`<span class="badge">${ps.td}</span>`:`<span class="meta">${ps.last?fmt(ps.last):""}</span>`}</div>`});
+  $("#nav-projects").innerHTML=html;
+  $("#nav-overview").classList.toggle("active",state.view==="dashboard"&&!state.status);
+  $("#ct-ip").textContent=projectsByStatus("in-progress").length;
+  $("#ct-done").textContent=projectsByStatus("done").length;
+  $("#ct-blocked").textContent=projectsByStatus("blocked").length;
+  $("#ct-archived").textContent=archivedProjects().length;
+}
+
+function renderStats(){
+  const aps=activeProjects();
+  $("#stat-proj").textContent=aps.length;
+  $("#stat-week").textContent=ENTRIES.filter(e=>String(e.ts)>=weekStartStr()).length;
+  $("#stat-month").textContent=ENTRIES.filter(e=>String(e.ts)>=monthStartStr()).length;
+  const todo=allTodos().length;
+  $("#stat-todo").textContent=todo;
+  $("#hero-count").textContent=`按项目分组 · ${todo} 项待办`;
+}
+
+function renderHero(){
+  const todos=allTodos();
+  const byP={};todos.forEach(t=>{(byP[t.pkey]=byP[t.pkey]||[]).push(t)});
+  const order=activeProjects();
+  let html="";
+  order.forEach(p=>{if(!byP[p])return;html+=`<div class="todo-group"><div class="gh" data-proj="${esc(p)}"><span class="swatch" style="background:${colorOf(p)}"></span>${esc(pname(p))} <span style="color:var(--text-3);font-weight:400">· ${byP[p].length}</span></div>`;byP[p].forEach(t=>{const done=state.done.has(t.key);const staleMark=t.stale?` <span style="font-size:10px;color:var(--amber);font-weight:600">⏰疑似阻塞</span>`:"";html+=`<div class="todo-row ${done?"done":""}"><div class="check ${done?"done":""}" data-key="${t.key}"></div><div class="todo-text">${esc(t.text)} ${prioChip(t.prio)}${staleMark}<div class="todo-src">来自「<span class="tag">${esc(t.src)}</span>」</div></div></div>`});html+="</div>"});
+  if(!todos.length)html=`<div class="empty">🎉 没有待办</div>`;
+  $("#hero-body").innerHTML=html;
+  $("#hero-body").querySelectorAll(".check").forEach(c=>{c.onclick=ev=>{ev.stopPropagation();const k=c.dataset.key;state.done.has(k)?state.done.delete(k):state.done.add(k);render()}});
+  $("#hero-body").querySelectorAll(".gh").forEach(g=>{g.onclick=()=>openDetail(g.dataset.proj)});
+}
+
+function renderProjectCards(){
+  const aps=activeProjects();
+  if(!aps.length){$("#pgrid").innerHTML=`<div class="empty">没有进行中的项目</div>`;return}
+  $("#pgrid").innerHTML=aps.map(p=>{const s=projectStats(p);const es=projectEntries(p).sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));const brief=es.length?es[0].summary:"";return `<div class="pcard" data-proj="${esc(p)}"><div class="pcard-head"><span class="sw" style="background:${colorOf(p)}"></span><span class="pn">${esc(pname(p))}</span><span class="chip st-${s.status}">${statusLabel(s.status)}</span></div>${brief?`<div class="pcard-goal">${esc(brief)}</div>`:""}${s.stales?`<div style="font-size:11px;color:var(--amber);padding:0 0 8px">⏰ ${s.stales} 项疑似阻塞待办</div>`:""}<div class="pcard-foot"><span>更新 ${s.last?fmt(s.last):"-"}</span><span class="todo">${s.td?"待办事项："+s.td:""}</span></div></div>`}).join("");
+  $("#pgrid").querySelectorAll(".pcard").forEach(c=>{c.onclick=()=>openDetail(c.dataset.proj)});
+}
+
+function renderStatusView(){
+  const label=statusLabel(state.status);
+  document.querySelector(".hero-head .count").textContent=`${label} 筛选`;
+  document.querySelector(".section-head h2").textContent=`${label} 的项目`;
+  // 所有状态都按项目展示：归档用 archivedProjects，其他用 projectsByStatus
+  let projects;
+  if(state.status==="archived"){
+    projects=archivedProjects();
+  }else{
+    projects=projectsByStatus(state.status).map(k=>({k,last:projectEntries(k).map(e=>e.ts).sort().reverse()[0]})).sort((a,b)=>String(b.last).localeCompare(String(a.last))).map(x=>x.k);
+  }
+  $("#hero-body").innerHTML=`<div class="empty">状态筛选：${label} · 共 ${projects.length} 个项目（待办驾驶舱已隐藏，点「总览」恢复）</div>`;
+  if(!projects.length){$("#pgrid").innerHTML=`<div class="empty">没有${label}的项目</div>`;return}
+  const chipClass=state.status==="archived"?"st-archived":`st-${state.status}`;
+  const chipText=state.status==="archived"?"📦 创意仓库":label;
+  const opacity=state.status==="archived"?".8":"1";
+  $("#pgrid").innerHTML=projects.map(p=>{const s=projectStats(p);return `<div class="pcard" data-proj="${esc(p)}" style="opacity:${opacity}"><div class="pcard-head"><span class="sw" style="background:${colorOf(p)}"></span><span class="pn">${esc(pname(p))}</span><span class="chip ${chipClass}">${chipText}</span></div><div class="pcard-foot"><span>更新 ${s.last?fmt(s.last):"-"}</span><span>共 ${s.total} 条</span>${s.td?`<span class="todo">📋 ${s.td}</span>`:""}</div></div>`}).join("");
+  $("#pgrid").querySelectorAll(".pcard").forEach(c=>{c.onclick=()=>{state.status=null;openDetail(c.dataset.proj)}});
+}
+
+function openDetail(p){state.view="detail";state.proj=p;state.q="";state.tlExpanded=false;$("#search2").value="";renderNav();renderDetail();$("#view-dashboard").classList.add("hidden");$("#view-detail").classList.remove("hidden");window.scrollTo(0,0)}
+function backToDash(){state.view="dashboard";state.proj=null;state.status=null;state.q="";$("#search").value="";renderNav();render();$("#view-detail").classList.add("hidden");$("#view-dashboard").classList.remove("hidden")}
+
+async function renderDetail(){
+  const p=state.proj;const meta=await loadMeta(p);const s=projectStats(p);const es=projectEntries(p);
+  const q=state.q.toLowerCase();
+  const fEs=es.filter(e=>!q||(e.summary+" "+(e.next||[]).map(n=>n.t).join(" ")).toLowerCase().includes(q));
+  const todos=es.filter(e=>e.next&&e.next.length).flatMap(e=>e.next.map(n=>({t:n.t,p:n.p,prog:n.prog,src:e.summary})));
+  const risks=es.filter(e=>e.status==="blocked");
+  const stales=staleNexts(p);
+  const decisions=es.filter(e=>e.type==="decision");
+  const arts=es.filter(e=>e.artifacts&&e.artifacts.length).flatMap(e=>e.artifacts.map(a=>({a,src:e.summary,ts:e.ts,file:e.file})));
+  const tlSorted=fEs.slice().sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
+  const tlShow=state.tlExpanded?tlSorted:tlSorted.slice(0,5);
+
+  $("#detail-root").innerHTML=`
+    <div class="block">
+      <div class="dh-top"><span class="sw" style="background:${colorOf(p)}"></span><h2>${esc(pname(p))}</h2><span class="chip st-${s.status}">${statusLabel(s.status)}</span>${meta.stage?`<span class="stage-tag">${esc(meta.stage)}</span>`:""}</div>
+      ${meta.goal?`<div class="goal-row">🎯 ${esc(meta.goal)}</div>`:""}
+      <div class="updated-line">项目状态：${statusLabel(s.status)} · 最近更新：${s.last?fmt(s.last):"-"} · 共 ${s.total} 条记录</div>
+    </div>
+    <div class="block"><div class="block-head"><span class="ico">🎯</span><h2>目标与当前焦点</h2></div>${todos.length?`<ul class="focus-list">${todos.map(t=>`<li><span class="bullet">▸</span><div class="ft"><div class="ft-row"><span class="ft-text">${esc(t.t)}</span>${prioChip(t.p)}<span class="ft-prog">${progBar(t.prog)}</span></div><div class="fsrc">来自「${esc(t.src)}」</div></div></li>`).join("")}</ul>`:`<div class="empty">暂无待办，项目可能已完成</div>`}</div>
+    ${(risks.length||stales.length)?`<div class="block"><div class="block-head"><span class="ico">⛔</span><h2>风险与阻塞</h2><span class="right">${risks.length+stales.length} 项</span></div>${risks.map(r=>`<div class="risk"><span class="ric">⛔</span><div class="rt"><div class="rtitle">${esc(r.summary)} <span style="font-size:10px;color:var(--red);font-weight:600">手动标注</span></div><div class="rdesc">来自 ${fmt(r.ts)}</div><div class="rmeta">${esc((r.next||[]).map(n=>n.t).join("；")||"无明确解法")}</div></div></div>`).join("")}${stales.map(st=>`<div class="risk" style="background:var(--bg-3);border-color:var(--amber)"><span class="ric" style="color:var(--amber)">⏰</span><div class="rt"><div class="rtitle">${esc(st.t)} <span style="font-size:10px;color:var(--amber);font-weight:600">疑似阻塞</span></div><div class="rdesc">首次出现于 ${fmt(st.firstSeen)}</div><div class="rmeta" style="color:var(--amber)">超 ${STALE_DAYS} 天未被新沉淀推进 · 来自「${esc(st.src)}」</div></div></div>`).join("")}</div>`:""}
+    ${decisions.length?`<div class="block"><div class="block-head"><span class="ico">⚖️</span><h2>关键决策记录</h2><span class="right">${decisions.length} 项</span></div>${decisions.map(d=>`<div class="dec"><div class="dtitle">${esc(d.summary)}</div><div class="dmeta">${fmt(d.ts)} · ${esc(d.agent)}</div></div>`).join("")}</div>`:""}
+    ${arts.length?`<div class="block"><div class="block-head"><span class="ico">📎</span><h2>产出资料</h2><span class="right">${arts.length} 份 · 右键打开菜单</span></div><div class="art-grid">${arts.map(a=>`<div class="art" data-path="${esc(a.file)}"><span class="aic">📄</span><span class="an" title="${esc(a.a)}">${esc(a.a)}</span><span class="am">${fmt(a.ts)}</span></div>`).join("")}</div></div>`:""}
+    <div class="block"><div class="block-head"><span class="ico">📜</span><h2>附录 · 更新时间轴</h2><span class="right">${tlSorted.length} 条 · ${state.tlExpanded?"已展开":"近 5 条"}</span></div>${tlSorted.length?`<div class="tl">${tlShow.map(e=>{const nextHtml=(e.next&&e.next.length)?`<div class="tl-next"><b>▸ 下一步：</b>${esc(e.next.map(n=>n.t).join("；"))}</div>`:"";return `<div class="tl-item ${e.type} ${e.status==="blocked"?"blocked":""}"><div class="tl-card"><div class="tl-meta"><span class="chip type-${e.type}">${typeLabel(e.type)}</span><span class="chip st-${e.status}">${statusLabel(e.status)}</span><span>${fmt(e.ts)}</span><span>· ${esc(e.agent)}</span></div><div class="tl-title">${esc(e.summary)}</div>${nextHtml}</div></div>`}).join("")}</div>${(tlSorted.length>5&&!state.tlExpanded)?`<div class="show-more" id="showMore">展开剩余 ${tlSorted.length-5} 条 ▾</div>`:""}`:`<div class="empty">没有匹配的记录</div>`}</div>
+  `;
+  const sm=$("#showMore");if(sm)sm.onclick=()=>{state.tlExpanded=true;renderDetail()};
+  $("#detail-root").querySelectorAll(".art").forEach(el=>{
+    el.oncontextmenu=ev=>{ev.preventDefault();openArtMenu(el,ev.clientX,ev.clientY)};
+    el.onclick=()=>{const r=el.getBoundingClientRect();openArtMenu(el,r.left,r.bottom+4)};
+  });
+}
+
+function openArtMenu(el,x,y){
+  closeArtMenu();
+  const path=el.dataset.path||"";
+  const isMac=navigator.platform.toLowerCase().includes("mac");
+  const isWin=navigator.platform.toLowerCase().includes("win");
+  const revealLabel=isMac?"在访达中显示":isWin?"在资源管理器中显示":"在文件管理器中显示";
+  const m=document.createElement("div");m.className="art-menu";
+  m.style.left=Math.min(x,window.innerWidth-220)+"px";m.style.top=y+"px";
+  m.innerHTML=`<div class="art-menu-item" data-act="reveal">📁 ${revealLabel}</div><div class="art-menu-item" data-act="copy">📋 复制路径</div><div class="art-menu-item" data-act="open">↗ 打开文件</div>`;
+  document.body.appendChild(m);
+  m.querySelectorAll(".art-menu-item").forEach(it=>{it.onclick=()=>{
+    const act=it.dataset.act;
+    if(act==="copy"){navigator.clipboard&&navigator.clipboard.writeText(path);flash("已复制路径："+path)}
+    else if(act==="reveal"){fetch("/reveal?path="+encodeURIComponent(path)).then(r=>r.text()).then(t=>flash(t)).catch(()=>flash("调用失败"))}
+    else if(act==="open"){flash("（原型）打开文件：\n"+path)}
+    closeArtMenu();
+  }});
+}
+function closeArtMenu(){const m=document.querySelector(".art-menu");if(m)m.remove()}
+function flash(msg){let f=document.createElement("div");f.className="toast";f.textContent=msg;document.body.appendChild(f);setTimeout(()=>f.remove(),2600)}
+
+function render(){renderNav();renderStats();if(state.view==="dashboard"){if(state.status){renderStatusView()}else{renderHero();renderProjectCards()}}else{renderDetail()}}
+
+// 加载数据：按月分片索引，默认加载近 3 个月，更早可懒加载
+const LOADED_MONTHS=new Set();
+function ymStr(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`}
+function prevMonth(ym){const [y,m]=ym.split('-').map(Number);const d=new Date(y,m-2,1);return ymStr(d)}
+function recentMonths(n){const out=[];let ym=ymStr(new Date());for(let i=0;i<n;i++){out.push(ym);ym=prevMonth(ym)}return out}
+
+async function loadMonth(ym,force){
+  if(LOADED_MONTHS.has(ym)&&!force)return;
+  LOADED_MONTHS.add(ym);
+  try{
+    const r=await fetch(`data/index/${ym}.jsonl?ts=`+Date.now());
+    if(!r.ok)return;
+    const txt=await r.text();
+    const rows=txt.trim().split("\n").filter(Boolean).map(l=>{try{return JSON.parse(l)}catch(e){return null}}).filter(Boolean);
+    // force 模式：替换该月数据（捕获新增）；否则合并去重
+    if(force){
+      ENTRIES=ENTRIES.filter(e=>e.ts.slice(0,7)!==ym);
+      ENTRIES.push(...rows);
+    }else{
+      const existing=new Set(ENTRIES.map(e=>e.file));
+      rows.forEach(r=>{if(!existing.has(r.file))ENTRIES.push(r)});
+    }
+  }catch(e){}
+}
+
+async function load(){
+  try{
+    // 默认加载近 3 个月
+    for(const ym of recentMonths(3)){await loadMonth(ym)}
+    // 按 ts 排序
+    ENTRIES.sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
+    render();
+  }catch(e){
+    $("#hero-body").innerHTML=`<div class="empty">无法加载索引。请确认 serve.py 已启动，或先运行 sediment.py 产生数据。</div>`;
+    $("#pgrid").innerHTML="";
+  }
+}
+// 懒加载更早月份（供"加载更多"按钮调用）
+async function loadEarlier(){
+  // 从已加载最早月份往前推
+  let earliest=LOADED_MONTHS.size?([...LOADED_MONTHS].sort())[0]:ymStr(new Date());
+  let ym=prevMonth(earliest);
+  let loaded=0;
+  for(let i=0;i<6;i++){ // 一次往前探 6 个月
+    if(!LOADED_MONTHS.has(ym)){await loadMonth(ym);if(LOADED_MONTHS.has(ym))loaded++}
+    ym=prevMonth(ym);
+  }
+  if(loaded){ENTRIES.sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));render()}
+  return loaded;
+}
+load();
+
+// 30 秒自动刷新（捕获新沉淀：强制重载当月索引）
+setInterval(async()=>{if(state.view==="dashboard"){await loadMonth(ymStr(new Date()),true);ENTRIES.sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));render()}},30000);
+
+$("#sidebar").addEventListener("click",ev=>{
+  const it=ev.target.closest(".nav-item");if(!it)return;
+  if(it.dataset.action==="overview"){backToDash();return}
+  if(it.dataset.status){
+    if(state.status===it.dataset.status){state.status=null}else{state.status=it.dataset.status}
+    if(state.view!=="dashboard"){backToDash()}
+    state.q="";$("#search").value="";render();return;
+  }
+  if(it.dataset.proj){state.status=null;openDetail(it.dataset.proj)}
+});
+$("#search").addEventListener("input",e=>{state.q=e.target.value;render()});
+$("#search2").addEventListener("input",e=>{state.q=e.target.value;renderDetail()});
+$("#backBtn").onclick=backToDash;
+$("#s-proj").onclick=()=>{document.querySelector("#pgrid").scrollIntoView({behavior:"smooth"})};
+$("#s-todo").onclick=()=>{document.querySelector(".hero").scrollIntoView({behavior:"smooth"})};
+document.addEventListener("click",ev=>{if(!ev.target.closest(".art-menu")&&!ev.target.closest(".art"))closeArtMenu()});
+document.addEventListener("keydown",ev=>{if(ev.key==="Escape")closeArtMenu()});
+
+const THEMES=["auto","light","dark"];let ti=0;
+function applyTheme(){const t=THEMES[ti];document.documentElement.dataset.theme=t;const lbl=t==="auto"?"🌗 跟随系统":t==="light"?"☀️ 浅色":"🌙 深色";$("#themeBtn").textContent=lbl;$("#themeBtn2").textContent=lbl}
+$("#themeBtn").onclick=()=>{ti=(ti+1)%3;applyTheme()};
+$("#themeBtn2").onclick=()=>{ti=(ti+1)%3;applyTheme()};
+applyTheme();
+</script>
+</body>
+</html>
